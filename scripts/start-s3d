@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Find the DNS Name of the s3d instance
+id=$(
+  aws ec2 describe-instances \
+  | jq -r '
+    .Reservations[].Instances[]
+    | select(.Tags[0].Value == "s3d-i1")
+    | .InstanceId
+  '
+)
+
+aws ec2 start-instances --instance-ids "$id"

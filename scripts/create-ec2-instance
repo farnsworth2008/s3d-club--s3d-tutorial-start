@@ -1,0 +1,76 @@
+#!/bin/bash
+
+# *****************************************************************************
+# This script starts an EC2 Instance for the S3D Club Tutorial project
+# *****************************************************************************
+
+# The following command puts this script into a mode where it will exit if it
+# encounters an unexpected condition.
+#
+# For example, the script expects that the account does not already have an key
+# named "s3d-k1" and as such if such a key already exists the script will exit
+# with an error message.
+set -e
+
+# Set to echo command
+set -x
+
+# Create a directory to store output files
+mkdir -p ./out
+
+# Create a key pair named "s3d-1" and save the results in "ec2-keypair.json"
+aws ec2 create-key-pair --key-name s3d-k1 > out/key.json
+
+# Create a Privacy Enhanced Mail (PEM) file using the material from the
+# keypair.
+#
+# This uses JQ to extract the "KeyMaterial" and uses shell output redirection
+# to save the result to a PEM file.
+#
+# The "-r" paramter instructs JQ to output the RAW result rather then it's
+# normal operaition where results are output as JSON content.
+#
+# JQ is an amazing tool for working AWS and other commands that use Java Script
+# Object Notation for output.
+rm -rf $HOME/s3d-k1.pem
+jq -r .KeyMaterial < out/key.json > $HOME/s3d-k1.pem
+
+# Set user read permission and removes all other permissions because SSH
+# requires this.
+chmod 400 $HOME/s3d-k1.pem
+
+# Create a security group
+aws ec2 create-security-group \
+	--description 'Allow SSH' \
+	--group-name s3d-g1 \
+  > out/security-group.json
+
+# Get the security group ID
+sg_id=$(jq -r .GroupId < out/security-group.json)
+
+# Authorize a "cidr" of "0.0.0.0/0" which means any location in the world.
+#
+# This authorization allows port 22 access but the incomming requst (i.e.
+# "ingress") will be rejected by SSH if it does not have the PEM file. 
+#
+# If you are paranoid you could adjust the CIDR to limit the IP address that
+# are allowed to connect but in my view the risk is negligable **PROVIDED** you
+# keep the PEM file secure.
+aws ec2 authorize-security-group-ingress \
+	--cidr '0.0.0.0/0' \
+	--group-id $sg_id \
+	--port 22 \
+	--protocol 'tcp' \
+	> out/ingress.json
+
+# Run an EC2 Instance
+aws ec2 run-instances \
+  --image-id 'resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2' \
+  --instance-type 't4g.small' \
+  --key-name 's3d-k1' \
+  --security-group-ids "$sg_id" \
+  --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=s3d-i1}]' \
+  > out/ec2.json
+
+# Sleep for 60 seconds to provide time for the instance to start.
+sleep 60
