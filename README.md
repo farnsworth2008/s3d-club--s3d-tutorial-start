@@ -7,8 +7,8 @@ and [CHANGES][chge] documents before working in this project and anytime they
 are update.
 
 ## Overview
-This project defines a good starting point for new club members who need to
-follow our tutorial to setup their EC2 instances and AWS account.
+This project defines a good starting point for new club members who can follow
+our tutorial to setup their EC2 instances and AWS account.
 
 [chge]: ./CHANGES.md
 [code]: ./CODE-OF-CONDUCT.md
